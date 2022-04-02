@@ -1,5 +1,5 @@
 {
-  "name": "zod-express-middleware",
+  "name": "zod-express-middleware-with-nextjs-api-utils",
   "version": "1.4.0",
   "description": "Express middleware to validate requests using zod schema's.",
   "main": "lib/index.js",
@@ -33,10 +33,11 @@
     "eslint": "^7.28.0",
     "express": "^4.17.1",
     "jest": "^27.0.4",
+    "nextjs-api-utils": "^0.1.0",
     "prettier": "^2.3.1",
     "ts-jest": "^27.0.3",
     "typescript": "^4.3.2",
-    "zod": "^3.2.0"
+    "zod": "^3.14.3"
   },
   "peerDependencies": {
     "@types/express": "^4.17.12",
