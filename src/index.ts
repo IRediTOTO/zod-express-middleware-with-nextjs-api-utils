@@ -52,6 +52,7 @@ export const sendErrors: (errors: Array<ErrorListItem>, res: Response) => void =
     success: false,
     errorCode: 'bad_request',
     meta: errors.map((error) => ({ type: error.type, errors: error.errors })),
+    data: null,
   });
 };
 
@@ -60,6 +61,7 @@ export const sendError: (error: ErrorListItem, res: Response) => void = (error, 
     success: false,
     errorCode: 'bad_request',
     meta: { type: error.type, errors: error.errors },
+    data: null,
   });
 };
 
