@@ -1,6 +1,6 @@
 {
   "name": "zod-express-middleware-with-nextjs-api-utils",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "description": "Express middleware to validate requests using zod schema's.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -26,16 +26,15 @@
   "author": "Casper Schouls",
   "license": "MIT",
   "devDependencies": {
-    "@types/express": "^4.17.12",
     "@types/jest": "^26.0.23",
     "@types/react": "^17.0.43",
     "@types/react-dom": "^17.0.14",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
     "@typescript-eslint/parser": "^4.26.1",
     "eslint": "^7.28.0",
-    "express": "^4.17.1",
     "jest": "^27.0.4",
     "next": "^12.1.4",
+    "next-connect": "^0.12.2",
     "nextjs-api-utils": "^0.1.0",
     "prettier": "^2.3.1",
     "react": "^18.0.0",
@@ -45,8 +44,6 @@
     "zod": "^3.14.3"
   },
   "peerDependencies": {
-    "@types/express": "^4.17.12",
-    "express": "^4.17.1",
     "next": "^12.1.4",
     "zod": "^3.2.0"
   },

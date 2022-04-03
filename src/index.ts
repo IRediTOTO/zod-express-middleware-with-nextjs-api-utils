@@ -1,6 +1,6 @@
-import { Request, RequestHandler, Response } from 'express';
-import { ParamsDictionary } from 'express-serve-static-core';
 import { z, ZodEffects, ZodError, ZodSchema, ZodType, ZodTypeDef } from 'zod';
+import { Middleware } from 'next-connect';
+import { NextApiRequest, NextApiResponse } from 'next';
 
 type NonReadOnly<T> = { -readonly [P in keyof T]: NonReadOnly<T[P]> };
 
@@ -8,70 +8,51 @@ export function stripReadOnly<T>(readOnlyItem: T): NonReadOnly<T> {
   return readOnlyItem as NonReadOnly<T>;
 }
 
-export declare type RequestValidation<TParams, TQuery, TBody> = {
-  params?: ZodSchema<TParams>;
+export declare type RequestValidation<TQuery, TBody> = {
   query?: ZodSchema<TQuery>;
   body?: ZodSchema<TBody>;
 };
-export declare type RequestProcessing<TParams, TQuery, TBody> = {
-  params?: ZodEffects<any, TParams>;
+export declare type RequestProcessing<TQuery, TBody> = {
   query?: ZodEffects<any, TQuery>;
   body?: ZodEffects<any, TBody>;
 };
 
 export declare type TypedRequest<
-  TParams extends ZodType<any, ZodTypeDef, any>,
   TQuery extends ZodType<any, ZodTypeDef, any>,
   TBody extends ZodType<any, ZodTypeDef, any>,
-> = Request<z.infer<TParams>, any, z.infer<TBody>, z.infer<TQuery>>;
+> = NextApiRequest & { body: z.infer<TBody>; query: z.infer<TQuery> };
 
-export declare type TypedRequestBody<TBody extends ZodType<any, ZodTypeDef, any>> = Request<
-  ParamsDictionary,
-  any,
-  z.infer<TBody>,
-  any
->;
+export declare type TypedRequestBody<TBody extends ZodType<any, ZodTypeDef, any>> = NextApiRequest & {
+  body: z.infer<TBody>;
+};
 
-export declare type TypedRequestParams<TParams extends ZodType<any, ZodTypeDef, any>> = Request<
-  z.infer<TParams>,
-  any,
-  any,
-  any
->;
-export declare type TypedRequestQuery<TQuery extends ZodType<any, ZodTypeDef, any>> = Request<
-  ParamsDictionary,
-  any,
-  any,
-  z.infer<TQuery>
->;
+export declare type TypedRequestQuery<TQuery extends ZodType<any, ZodTypeDef, any>> = NextApiRequest & {
+  body: z.infer<TQuery>;
+};
 
 type ErrorListItem = { type: 'Query' | 'Params' | 'Body'; errors: ZodError<any> };
 
-export const sendErrors: (errors: Array<ErrorListItem>, res: Response) => void = (errors, res) => {
+export const sendErrors: (errors: Array<ErrorListItem>, res: NextApiResponse) => void = (errors, res) => {
   return res.status(400).json({
     success: false,
     errorCode: 'bad_request',
     meta: errors.map((error) => ({ type: error.type, errors: error.errors })),
-    data: null,
   });
 };
 
-export const sendError: (error: ErrorListItem, res: Response) => void = (error, res) => {
+export const sendError: (error: ErrorListItem, res: NextApiResponse) => void = (error, res) => {
   return res.json({
     success: false,
     errorCode: 'bad_request',
     meta: { type: error.type, errors: error.errors },
-    data: null,
   });
 };
 
-export function processRequestBody<TBody>(effects: ZodSchema<TBody>): RequestHandler<ParamsDictionary, any, TBody, any>;
-export function processRequestBody<TBody>(
-  effects: ZodEffects<any, TBody>,
-): RequestHandler<ParamsDictionary, any, TBody, any>;
+export function processRequestBody<TBody>(effects: ZodSchema<TBody>): Middleware<NextApiRequest, NextApiResponse>;
+export function processRequestBody<TBody>(effects: ZodEffects<any, TBody>): Middleware<NextApiRequest, NextApiResponse>;
 export function processRequestBody<TBody>(
   effectsSchema: ZodEffects<any, TBody> | ZodSchema<TBody>,
-): RequestHandler<ParamsDictionary, any, TBody, any> {
+): Middleware<NextApiRequest, NextApiResponse> {
   return (req, res, next) => {
     const parsed = effectsSchema.safeParse(req.body);
     if (parsed.success) {
@@ -83,37 +64,17 @@ export function processRequestBody<TBody>(
   };
 }
 
-export function processRequestParams<TParams>(effects: ZodSchema<TParams>): RequestHandler<TParams, any, any, any>;
-export function processRequestParams<TParams>(
-  effects: ZodEffects<any, TParams>,
-): RequestHandler<TParams, any, any, any>;
-export function processRequestParams<TParams>(
-  effectsSchema: ZodEffects<any, TParams> | ZodSchema<TParams>,
-): RequestHandler<TParams, any, any, any> {
-  return (req, res, next) => {
-    const parsed = effectsSchema.safeParse(req.params);
-    if (parsed.success) {
-      req.params = parsed.data;
-      return next();
-    } else {
-      return sendErrors([{ type: 'Params', errors: parsed.error }], res);
-    }
-  };
-}
-
-export function processRequestQuery<TQuery>(
-  effects: ZodSchema<TQuery>,
-): RequestHandler<ParamsDictionary, any, any, TQuery>;
+export function processRequestQuery<TQuery>(effects: ZodSchema<TQuery>): Middleware<NextApiRequest, NextApiResponse>;
 export function processRequestQuery<TQuery>(
   effects: ZodEffects<any, TQuery>,
-): RequestHandler<ParamsDictionary, any, any, TQuery>;
+): Middleware<NextApiRequest, NextApiResponse>;
 export function processRequestQuery<TQuery>(
   effectsSchema: ZodEffects<any, TQuery> | ZodSchema<TQuery>,
-): RequestHandler<ParamsDictionary, any, any, TQuery> {
+): Middleware<NextApiRequest, NextApiResponse> {
   return (req, res, next) => {
     const parsed = effectsSchema.safeParse(req.query);
     if (parsed.success) {
-      req.query = parsed.data;
+      req.query = { ...req.query, ...parsed.data };
       return next();
     } else {
       return sendErrors([{ type: 'Query', errors: parsed.error }], res);
@@ -121,29 +82,22 @@ export function processRequestQuery<TQuery>(
   };
 }
 
-export function processRequest<TParams = any, TQuery = any, TBody = any>(
-  schemas: RequestProcessing<TParams, TQuery, TBody>,
-): RequestHandler<TParams, any, TBody, TQuery>;
-export function processRequest<TParams = any, TQuery = any, TBody = any>(
-  schemas: RequestValidation<TParams, TQuery, TBody>,
-): RequestHandler<TParams, any, TBody, TQuery>;
-export function processRequest<TParams = any, TQuery = any, TBody = any>(
-  schemas: RequestValidation<TParams, TQuery, TBody> | RequestProcessing<TParams, TQuery, TBody>,
-): RequestHandler<TParams, any, TBody, TQuery> {
+export function processRequest<TQuery = any, TBody = any>(
+  schemas: RequestProcessing<TQuery, TBody>,
+): Middleware<NextApiRequest, NextApiResponse>;
+export function processRequest<TQuery = any, TBody = any>(
+  schemas: RequestValidation<TQuery, TBody>,
+): Middleware<NextApiRequest, NextApiResponse>;
+export function processRequest<TQuery = any, TBody = any>(
+  schemas: RequestValidation<TQuery, TBody>,
+): Middleware<NextApiRequest, NextApiResponse> {
   return (req, res, next) => {
     const errors: Array<ErrorListItem> = [];
-    if (schemas.params) {
-      const parsed = schemas.params.safeParse(req.params);
-      if (parsed.success) {
-        req.params = parsed.data;
-      } else {
-        errors.push({ type: 'Params', errors: parsed.error });
-      }
-    }
+
     if (schemas.query) {
       const parsed = schemas.query.safeParse(req.query);
       if (parsed.success) {
-        req.query = parsed.data;
+        req.query = { ...req.query, ...parsed.data };
       } else {
         errors.push({ type: 'Query', errors: parsed.error });
       }
@@ -165,49 +119,40 @@ export function processRequest<TParams = any, TQuery = any, TBody = any>(
 
 export const validateRequestBody: <TBody>(
   zodSchema: ZodSchema<TBody>,
-) => RequestHandler<ParamsDictionary, any, TBody, any> = (schema) => (req, res, next) => {
-  const parsed = schema.safeParse(req.body);
-  if (parsed.success) {
-    return next();
-  } else {
-    return sendErrors([{ type: 'Body', errors: parsed.error }], res);
-  }
-};
-
-export const validateRequestParams: <TParams>(
-  zodSchema: ZodSchema<TParams>,
-) => RequestHandler<TParams, any, any, any> = (schema) => (req, res, next) => {
-  const parsed = schema.safeParse(req.params);
-  if (parsed.success) {
-    return next();
-  } else {
-    return sendErrors([{ type: 'Params', errors: parsed.error }], res);
-  }
-};
+) => Middleware<NextApiRequest & { body: z.infer<typeof zodSchema> }, NextApiResponse> =
+  (schema) => (req, res, next) => {
+    const parsed = schema.safeParse(req.body);
+    if (parsed.success) {
+      return next();
+    } else {
+      return sendErrors([{ type: 'Body', errors: parsed.error }], res);
+    }
+  };
 
 export const validateRequestQuery: <TQuery>(
   zodSchema: ZodSchema<TQuery>,
-) => RequestHandler<ParamsDictionary, any, any, TQuery> = (schema) => (req, res, next) => {
-  const parsed = schema.safeParse(req.query);
-  if (parsed.success) {
-    return next();
-  } else {
-    return sendErrors([{ type: 'Query', errors: parsed.error }], res);
-  }
+) => Middleware<NextApiRequest & { query: z.infer<typeof zodSchema> }, NextApiResponse> =
+  (schema) => (req, res, next) => {
+    const parsed = schema.safeParse(req.query);
+    if (parsed.success) {
+      return next();
+    } else {
+      return sendErrors([{ type: 'Query', errors: parsed.error }], res);
+    }
+  };
+
+type ExtendNextApiRequest<TBody, TQuery> = NextApiRequest & {
+  body: TBody;
+  query: TQuery;
 };
 
-export const validateRequest: <TParams = any, TQuery = any, TBody = any>(
-  schemas: RequestValidation<TParams, TQuery, TBody>,
-) => RequestHandler<TParams, any, TBody, TQuery> =
-  ({ params, query, body }) =>
+export const validateRequest: <TQuery = any, TBody = any>(
+  schemas: RequestValidation<TQuery, TBody>,
+) => Middleware<ExtendNextApiRequest<z.infer<ZodSchema<TBody>>, z.infer<ZodSchema<TQuery>>>, NextApiResponse> =
+  ({ query, body }) =>
   (req, res, next) => {
     const errors: Array<ErrorListItem> = [];
-    if (params) {
-      const parsed = params.safeParse(req.params);
-      if (!parsed.success) {
-        errors.push({ type: 'Params', errors: parsed.error });
-      }
-    }
+
     if (query) {
       const parsed = query.safeParse(req.query);
       if (!parsed.success) {
